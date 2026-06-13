@@ -49,7 +49,11 @@ struct CardSearchView: View {
                     .presentationDetents([.medium, .large])
             }
             .fullScreenCover(isPresented: $showScanner, onDismiss: {
-                if let card = scannedCard { scannedCard = nil; selected = card }
+                guard let card = scannedCard else { return }
+                scannedCard = nil
+                // Defer until the cover's dismissal settles, otherwise the sheet
+                // presentation is dropped.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { selected = card }
             }) {
                 CardScanView(
                     onPicked: { card in scannedCard = card; showScanner = false },
