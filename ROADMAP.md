@@ -15,14 +15,13 @@ Status of the Pokedesk build. Done items are shipped and verified in the simulat
 - [x] **Spending & profit** — dashboard + add-expense form
 - [x] Create / **edit** / **delete** collections
 - [x] **Pull-to-refresh** prices across all cards
+- [x] **"Pick collections"** — add one card to multiple collections at once (checkboxes + create-new)
+- [x] **Active "Add to collections"** from card detail (copies the card into newly picked collections)
+- [x] **Edit quantity** of an owned card live from the detail screen (stepper, auto-saved)
+- [x] **Edit price paid / remove** an owned card (… menu + edit sheet) from the detail screen
+- [x] **App icon** (amber gradient + card with value trend line)
 
 ## 🔜 Next
-
-- [ ] **"Pick collections" screen** — add one card to multiple collections at once
-      (with checkboxes), matching the Stitch mockup
-- [ ] **Active "Add to collections"** action from the card detail bottom bar
-- [ ] **Edit / remove a single card** (quantity, price paid) from the detail screen
-- [ ] **App icon** + launch screen polish
 - [ ] Per-card "revenue today" indicator using the latest two snapshots
 
 ## 💡 Later / nice-to-have

@@ -24,6 +24,8 @@ enum Theme {
         static let primaryDeep = Color(hex: 0x835500)
         /// Unfilled progress track (#FBEED8)
         static let progressTrack = Color(hex: 0xFBEED8)
+        /// Soft warm outline for dashed borders (#D7C3AE)
+        static let outlineVariant = Color(hex: 0xD7C3AE)
 
         /// Near-black primary text (#1B1C1A)
         static let onSurface = Color(hex: 0x1B1C1A)

@@ -11,6 +11,11 @@ struct CardDetailView: View {
     @State private var tab: DetailTab = .trends
     @State private var range: ChartRange = .sixMonths
     @State private var isRefreshing = false
+    @State private var showCollectionPicker = false
+    @State private var pickerSelection: Set<CardCollection> = []
+    @State private var showEdit = false
+    @State private var showDeleteConfirm = false
+    @Environment(\.dismiss) private var dismiss
 
     enum DetailTab: String, CaseIterable { case trends = "Trends", details = "Details", listings = "Listings" }
 
@@ -34,13 +39,36 @@ struct CardDetailView: View {
         .safeAreaInset(edge: .bottom) { bottomBar }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    Task { await refreshPrice() }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .symbolEffect(.pulse, isActive: isRefreshing)
+                HStack(spacing: Theme.Spacing.md) {
+                    Button {
+                        Task { await refreshPrice() }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .symbolEffect(.pulse, isActive: isRefreshing)
+                    }
+                    Menu {
+                        Button { showEdit = true } label: { Label("Edit card", systemImage: "pencil") }
+                        Button(role: .destructive) { showDeleteConfirm = true } label: {
+                            Label("Remove card", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                    }
                 }
             }
+        }
+        .sheet(isPresented: $showEdit) {
+            EditCardSheet(card: card)
+        }
+        .alert("Remove \u{201C}\(card.name)\u{201D}?", isPresented: $showDeleteConfirm) {
+            Button("Remove", role: .destructive) {
+                context.delete(card)
+                try? context.save()
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes the card from this collection. This can't be undone.")
         }
     }
 
@@ -122,11 +150,47 @@ struct CardDetailView: View {
     private var bottomBar: some View {
         HStack(spacing: Theme.Spacing.md) {
             QuantityStepper(value: $card.quantity)
-            PrimaryButton(title: "Card saved", systemImage: "checkmark") {}
+                .onChange(of: card.quantity) { _, _ in try? context.save() }
+            PrimaryButton(title: "Add to collections", systemImage: "plus.circle.fill") {
+                pickerSelection = Set([card.collection].compactMap { $0 })
+                showCollectionPicker = true
+            }
         }
         .padding(.horizontal, Theme.Spacing.margin)
         .padding(.vertical, Theme.Spacing.sm)
         .background(.ultraThinMaterial)
+        .sheet(isPresented: $showCollectionPicker, onDismiss: applyCollectionChanges) {
+            NavigationStack {
+                CollectionPickerView(selection: $pickerSelection)
+            }
+        }
+    }
+
+    /// After picking, add a copy of this card to any newly selected collection
+    /// that doesn't already contain it.
+    private func applyCollectionChanges() {
+        for target in pickerSelection {
+            let alreadyThere = target.cards.contains { $0.apiCardId == card.apiCardId }
+            guard !alreadyThere else { continue }
+            let copy = OwnedCard(
+                apiCardId: card.apiCardId,
+                name: card.name,
+                setName: card.setName,
+                setNumber: card.setNumber,
+                rarity: card.rarity,
+                imageURLString: card.imageURLString,
+                quantity: card.quantity,
+                pricePaid: card.pricePaid,
+                lastKnownPrice: card.lastKnownPrice
+            )
+            copy.collection = target
+            target.cards.append(copy)
+            let snapshot = PriceSnapshot(price: copy.lastKnownPrice, date: .now)
+            snapshot.card = copy
+            copy.snapshots.append(snapshot)
+            context.insert(copy)
+        }
+        try? context.save()
     }
 
     // MARK: - Actions
