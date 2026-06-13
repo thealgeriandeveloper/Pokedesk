@@ -12,6 +12,10 @@ struct CardSearchView: View {
     @State private var errorMessage: String?
     @State private var selected: APICard?
     @State private var searchTask: Task<Void, Never>?
+    @State private var showScanner = false
+    /// Card chosen via the scanner; applied after the scanner cover dismisses
+    /// so the add sheet doesn't race the cover transition.
+    @State private var scannedCard: APICard?
 
     private let service = PokemonAPIService(apiKey: AppConfig.pokemonAPIKey)
 
@@ -29,6 +33,12 @@ struct CardSearchView: View {
             .navigationTitle("Add card")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showScanner = true } label: {
+                        Image(systemName: "camera.viewfinder")
+                    }
+                    .foregroundStyle(Theme.Colors.primaryDeep)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(Theme.Colors.primaryDeep)
@@ -37,6 +47,14 @@ struct CardSearchView: View {
             .sheet(item: $selected) { card in
                 AddToCollectionSheet(apiCard: card, collection: collection) { dismiss() }
                     .presentationDetents([.medium, .large])
+            }
+            .fullScreenCover(isPresented: $showScanner, onDismiss: {
+                if let card = scannedCard { scannedCard = nil; selected = card }
+            }) {
+                CardScanView(
+                    onPicked: { card in scannedCard = card; showScanner = false },
+                    onSearchManually: { showScanner = false }
+                )
             }
         }
     }

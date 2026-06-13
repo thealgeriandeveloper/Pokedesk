@@ -20,9 +20,11 @@ Status of the Pokedesk build. Done items are shipped and verified in the simulat
 - [x] **Edit quantity** of an owned card live from the detail screen (stepper, auto-saved)
 - [x] **Edit price paid / remove** an owned card (… menu + edit sheet) from the detail screen
 - [x] **App icon** (amber gradient + card with value trend line)
+- [x] **Scan a card by photo** — camera + on-device Vision OCR → API match, with confirm / choose-result / no-match screens (does not store the personal photo)
 
 ## 🔜 Next
 - [ ] Per-card "revenue today" indicator using the latest two snapshots
+- [ ] Tune OCR matching heuristics on real photos (name guess, confidence thresholds)
 
 ## 💡 Later / nice-to-have
 
