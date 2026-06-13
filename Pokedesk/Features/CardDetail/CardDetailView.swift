@@ -11,10 +11,15 @@ struct CardDetailView: View {
     @State private var tab: DetailTab = .trends
     @State private var range: ChartRange = .sixMonths
     @State private var isRefreshing = false
-    @State private var showCollectionPicker = false
     @State private var pickerSelection: Set<CardCollection> = []
-    @State private var showEdit = false
+    @State private var activeSheet: ActiveSheet?
     @State private var showDeleteConfirm = false
+
+    /// Single source of truth for which sheet is presented.
+    private enum ActiveSheet: Identifiable {
+        case picker, edit
+        var id: Int { hashValue }
+    }
     @Environment(\.dismiss) private var dismiss
 
     enum DetailTab: String, CaseIterable { case trends = "Trends", details = "Details", listings = "Listings" }
@@ -39,26 +44,31 @@ struct CardDetailView: View {
         .safeAreaInset(edge: .bottom) { bottomBar }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: Theme.Spacing.md) {
-                    Button {
-                        Task { await refreshPrice() }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                            .symbolEffect(.pulse, isActive: isRefreshing)
+                Button {
+                    Task { await refreshPrice() }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .symbolEffect(.pulse, isActive: isRefreshing)
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button { activeSheet = .edit } label: { Label("Edit card", systemImage: "pencil") }
+                    Button(role: .destructive) { showDeleteConfirm = true } label: {
+                        Label("Remove card", systemImage: "trash")
                     }
-                    Menu {
-                        Button { showEdit = true } label: { Label("Edit card", systemImage: "pencil") }
-                        Button(role: .destructive) { showDeleteConfirm = true } label: {
-                            Label("Remove card", systemImage: "trash")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                    }
+                } label: {
+                    Image(systemName: "ellipsis")
                 }
             }
         }
-        .sheet(isPresented: $showEdit) {
-            EditCardSheet(card: card)
+        .sheet(item: $activeSheet, onDismiss: handleSheetDismiss) { sheet in
+            switch sheet {
+            case .picker:
+                NavigationStack { CollectionPickerView(selection: $pickerSelection) }
+            case .edit:
+                EditCardSheet(card: card)
+            }
         }
         .alert("Remove \u{201C}\(card.name)\u{201D}?", isPresented: $showDeleteConfirm) {
             Button("Remove", role: .destructive) {
@@ -153,17 +163,18 @@ struct CardDetailView: View {
                 .onChange(of: card.quantity) { _, _ in try? context.save() }
             PrimaryButton(title: "Add to collections", systemImage: "plus.circle.fill") {
                 pickerSelection = Set([card.collection].compactMap { $0 })
-                showCollectionPicker = true
+                activeSheet = .picker
             }
         }
         .padding(.horizontal, Theme.Spacing.margin)
         .padding(.vertical, Theme.Spacing.sm)
         .background(.ultraThinMaterial)
-        .sheet(isPresented: $showCollectionPicker, onDismiss: applyCollectionChanges) {
-            NavigationStack {
-                CollectionPickerView(selection: $pickerSelection)
-            }
-        }
+    }
+
+    /// Runs when any sheet is dismissed. The picker's changes are applied here;
+    /// `pickerSelection` is empty after edit/other sheets, so it's a safe no-op.
+    private func handleSheetDismiss() {
+        applyCollectionChanges()
     }
 
     /// After picking, add a copy of this card to any newly selected collection
@@ -191,6 +202,8 @@ struct CardDetailView: View {
             context.insert(copy)
         }
         try? context.save()
+        // Clear so a later non-picker sheet dismissal doesn't re-add copies.
+        pickerSelection = []
     }
 
     // MARK: - Actions

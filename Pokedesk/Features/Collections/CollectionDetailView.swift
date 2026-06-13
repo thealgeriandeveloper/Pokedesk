@@ -9,9 +9,15 @@ struct CollectionDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var search = ""
-    @State private var showAddCard = false
-    @State private var showEdit = false
+    @State private var activeSheet: ActiveSheet?
     @State private var showDeleteConfirm = false
+
+    /// Single source of truth for which sheet is presented (avoids stacking
+    /// multiple `.sheet` modifiers, which silently break on iOS).
+    private enum ActiveSheet: Identifiable {
+        case addCard, edit
+        var id: Int { hashValue }
+    }
 
     /// Cards grouped by set name, filtered by the search query.
     private var groupedBySet: [(set: String, cards: [OwnedCard])] {
@@ -46,7 +52,7 @@ struct CollectionDetailView: View {
         }
         .background(Theme.Colors.background)
         .safeAreaInset(edge: .bottom) {
-            AddCardsButton(action: { showAddCard = true })
+            AddCardsButton(action: { activeSheet = .addCard })
                 .padding(.horizontal, Theme.Spacing.margin)
                 .padding(.bottom, Theme.Spacing.xs)
         }
@@ -64,27 +70,28 @@ struct CollectionDetailView: View {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: Theme.Spacing.md) {
-                    Button { showEdit = true } label: {
-                        Image(systemName: "pencil")
+                Button { activeSheet = .edit } label: {
+                    Image(systemName: "pencil")
+                }
+                .foregroundStyle(Theme.Colors.onSurface)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button { activeSheet = .edit } label: { Label("Edit collection", systemImage: "pencil") }
+                    Button(role: .destructive) { showDeleteConfirm = true } label: {
+                        Label("Delete collection", systemImage: "trash")
                     }
-                    Menu {
-                        Button { showEdit = true } label: { Label("Edit collection", systemImage: "pencil") }
-                        Button(role: .destructive) { showDeleteConfirm = true } label: {
-                            Label("Delete collection", systemImage: "trash")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                    }
+                } label: {
+                    Image(systemName: "ellipsis")
                 }
                 .foregroundStyle(Theme.Colors.onSurface)
             }
         }
-        .sheet(isPresented: $showAddCard) {
-            CardSearchView(collection: collection)
-        }
-        .sheet(isPresented: $showEdit) {
-            CollectionFormView(editing: collection)
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .addCard: CardSearchView(collection: collection)
+            case .edit: CollectionFormView(editing: collection)
+            }
         }
         .alert("Delete \u{201C}\(collection.name)\u{201D}?", isPresented: $showDeleteConfirm) {
             Button("Delete", role: .destructive) {
